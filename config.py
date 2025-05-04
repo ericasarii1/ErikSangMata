@@ -3,7 +3,7 @@ from pyrogram import Client, filters
 from pyrogram.types import Message
 from dotenv import load_dotenv
 
-# Logging
+# Logging terminal
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
     level=logging.INFO
@@ -11,15 +11,15 @@ logging.basicConfig(
 
 load_dotenv()
 
-api_id = int(os.getenv("API_ID", ""))
-api_hash = os.getenv("API_HASH", "")
-bot_token = os.getenv("BOT_TOKEN", "")
-log_channel = int(os.getenv("LOG_CHANNEL_ID", ""))
+api_id = int(os.getenv("API_ID", "23746013"))
+api_hash = os.getenv("API_HASH", "c4c86f53aac9b29f7fa28d5ba953be44")
+bot_token = os.getenv("BOT_TOKEN", "7547900184:AAHG_FIFns7DSI4jtPSnQ726yO3yB3BnEzY")
+log_channel = int(os.getenv("LOG_CHANNEL_ID", "-1002518891874"))
 
 app = Client("sangmata_bot", api_id=api_id, api_hash=api_hash, bot_token=bot_token)
 usernames = {}
 
-# Inisialisasi Database
+# Inisialisasi database
 async def init_db():
     async with aiosqlite.connect("history.db") as db:
         await db.execute("""
@@ -33,7 +33,7 @@ async def init_db():
         """)
         await db.commit()
 
-# Simpan ke database
+# Simpan riwayat ke database
 async def save_history(uid, first_name, last_name, username):
     async with aiosqlite.connect("history.db") as db:
         await db.execute("""
@@ -42,18 +42,7 @@ async def save_history(uid, first_name, last_name, username):
         """, (uid, first_name, last_name, username))
         await db.commit()
 
-# Ambil riwayat dari database
-async def get_history(uid):
-    async with aiosqlite.connect("history.db") as db:
-        cursor = await db.execute("""
-            SELECT first_name, last_name, username, timestamp
-            FROM history
-            WHERE user_id = ?
-            ORDER BY timestamp
-        """, (uid,))
-        return await cursor.fetchall()
-
-@app.on_message(filters.group)
+@app.on_message(filters.group | filters.private)
 async def track_user(client: Client, message: Message):
     user = message.from_user
     if not user or user.is_bot:
@@ -71,47 +60,26 @@ async def track_user(client: Client, message: Message):
 
         text = (
             f"⚠️ **Perubahan Deteksi Identitas!**\n"
-            f"👤 [{user.first_name}](tg://user?id={uid}) (`{uid}`)\n"
+            f"👤 {new_name} ({uid})\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
-            f"📝 **Nama Lama:** `{old_name}`\n"
-            f"🔖 **Username Lama:** `{old_username}`\n"
-            f"🆕 **Nama Baru:** `{new_name}`\n"
-            f"🏷️ **Username Baru:** `{new_username}`"
+            f"📝 **Nama Lama:** {old_name}\n"
+            f"🔖 **Username Lama:** {old_username}\n"
+            f"🆕 **Nama Baru:** {new_name}\n"
+            f"🏷️ **Username Baru:** {new_username}"
         )
 
+        # Balas di chat
         await message.reply(text)
+
+        # Kirim ke channel log
         await client.send_message(log_channel, text)
 
-        # Simpan riwayat ke database
+        # Simpan ke database
         await save_history(uid, old[0], old[1], old[2])
 
     usernames[uid] = current
 
-@app.on_message(filters.command("riwayat") & filters.private)
-async def check_history(client: Client, message: Message):
-    args = message.text.split()
-    if len(args) < 2:
-        return await message.reply("Format salah!\nKirim: `/riwayat <user_id>`", quote=True)
-
-    try:
-        uid = int(args[1])
-        history = await get_history(uid)
-
-        if not history:
-            return await message.reply("Tidak ada riwayat ditemukan.")
-
-        lines = []
-        for idx, (first, last, username, ts) in enumerate(history, 1):
-            name = f"{first} {last}".strip()
-            uname = f"@{username}" if username else "❌ Tidak ada"
-            lines.append(f"{idx}. `{name}` | `{uname}` | `{ts}`")
-
-        await message.reply("📜 Riwayat perubahan:\n" + "\n".join(lines))
-
-    except Exception as e:
-        await message.reply(f"Terjadi kesalahan: {e}")
-
 if __name__ == "__main__":
-    logging.info("🚀 Memulai SangMata Bot dengan SQLite logging...")
+    logging.info("✅ Bot SangMata Clone Aktif...")
     asyncio.get_event_loop().run_until_complete(init_db())
     app.run()
