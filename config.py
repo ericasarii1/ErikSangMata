@@ -12,9 +12,9 @@ logging.basicConfig(
 load_dotenv()
 
 api_id = int(os.getenv("API_ID", "23746013"))
-api_hash = os.getenv("API_HASH", "c4c86f53aac9b29f7fa28d5ba953be44")
-bot_token = os.getenv("BOT_TOKEN", "7547900184:AAHG_FIFns7DSI4jtPSnQ726yO3yB3BnEzY")
-log_channel = int(os.getenv("LOG_CHANNEL_ID", "-1002518891874"))
+api_hash = os.getenv("API_HASH", "")
+bot_token = os.getenv("BOT_TOKEN", "")
+log_channel = int(os.getenv("LOG_CHANNEL_ID", ""))
 
 app = Client("sangmata_bot", api_id=api_id, api_hash=api_hash, bot_token=bot_token)
 usernames = {}
