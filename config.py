@@ -15,6 +15,7 @@ load_dotenv()
 api_id = int(os.getenv("API_ID", ""))
 api_hash = os.getenv("API_HASH", "")
 bot_token = os.getenv("BOT_TOKEN", "")
+log_channel = int(os.getenv("LOG_CHANNEL_ID", ""))  # Ganti dengan ID channelmu
 
 app = Client("sangmata_bot", api_id=api_id, api_hash=api_hash, bot_token=bot_token)
 usernames = {}
@@ -22,7 +23,8 @@ usernames = {}
 @app.on_message(filters.group)
 async def track_user(client: Client, message: Message):
     user = message.from_user
-    if not user or user.is_bot: return
+    if not user or user.is_bot:
+        return
 
     uid = user.id
     current = (user.first_name or "", user.last_name or "", user.username or "")
@@ -34,7 +36,7 @@ async def track_user(client: Client, message: Message):
         old_username = f"@{old[2]}" if old[2] else "❌ Tidak ada"
         new_username = f"@{current[2]}" if current[2] else "❌ Tidak ada"
 
-        await message.reply(
+        text = (
             f"⚠️ **Perubahan Deteksi Identitas!**\n"
             f"👤 [{user.first_name}](tg://user?id={uid}) (`{uid}`)\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -43,6 +45,9 @@ async def track_user(client: Client, message: Message):
             f"🆕 **Nama Baru:** `{new_name}`\n"
             f"🏷️ **Username Baru:** `{new_username}`"
         )
+
+        await message.reply(text)
+        await client.send_message(log_channel, text)
 
     usernames[uid] = current
 
