@@ -1,4 +1,4 @@
-import os, logging
+import os, logging, asyncio, aiosqlite
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from dotenv import load_dotenv
@@ -11,14 +11,47 @@ logging.basicConfig(
 
 load_dotenv()
 
-# Konfigurasi
 api_id = int(os.getenv("API_ID", ""))
 api_hash = os.getenv("API_HASH", "")
 bot_token = os.getenv("BOT_TOKEN", "")
-log_channel = int(os.getenv("LOG_CHANNEL_ID", ""))  # Ganti dengan ID channelmu
+log_channel = int(os.getenv("LOG_CHANNEL_ID", ""))
 
 app = Client("sangmata_bot", api_id=api_id, api_hash=api_hash, bot_token=bot_token)
 usernames = {}
+
+# Inisialisasi Database
+async def init_db():
+    async with aiosqlite.connect("history.db") as db:
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS history (
+                user_id INTEGER,
+                first_name TEXT,
+                last_name TEXT,
+                username TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        await db.commit()
+
+# Simpan ke database
+async def save_history(uid, first_name, last_name, username):
+    async with aiosqlite.connect("history.db") as db:
+        await db.execute("""
+            INSERT INTO history (user_id, first_name, last_name, username)
+            VALUES (?, ?, ?, ?)
+        """, (uid, first_name, last_name, username))
+        await db.commit()
+
+# Ambil riwayat dari database
+async def get_history(uid):
+    async with aiosqlite.connect("history.db") as db:
+        cursor = await db.execute("""
+            SELECT first_name, last_name, username, timestamp
+            FROM history
+            WHERE user_id = ?
+            ORDER BY timestamp
+        """, (uid,))
+        return await cursor.fetchall()
 
 @app.on_message(filters.group)
 async def track_user(client: Client, message: Message):
@@ -49,8 +82,36 @@ async def track_user(client: Client, message: Message):
         await message.reply(text)
         await client.send_message(log_channel, text)
 
+        # Simpan riwayat ke database
+        await save_history(uid, old[0], old[1], old[2])
+
     usernames[uid] = current
 
+@app.on_message(filters.command("riwayat") & filters.private)
+async def check_history(client: Client, message: Message):
+    args = message.text.split()
+    if len(args) < 2:
+        return await message.reply("Format salah!\nKirim: `/riwayat <user_id>`", quote=True)
+
+    try:
+        uid = int(args[1])
+        history = await get_history(uid)
+
+        if not history:
+            return await message.reply("Tidak ada riwayat ditemukan.")
+
+        lines = []
+        for idx, (first, last, username, ts) in enumerate(history, 1):
+            name = f"{first} {last}".strip()
+            uname = f"@{username}" if username else "❌ Tidak ada"
+            lines.append(f"{idx}. `{name}` | `{uname}` | `{ts}`")
+
+        await message.reply("📜 Riwayat perubahan:\n" + "\n".join(lines))
+
+    except Exception as e:
+        await message.reply(f"Terjadi kesalahan: {e}")
+
 if __name__ == "__main__":
-    logging.info("🚀 SangMata Bot siap mengawasi perubahan identitas!")
+    logging.info("🚀 Memulai SangMata Bot dengan SQLite logging...")
+    asyncio.get_event_loop().run_until_complete(init_db())
     app.run()
