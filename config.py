@@ -1,4 +1,7 @@
-import os, logging, asyncio, aiosqlite
+import os
+import logging
+import asyncio
+import aiosqlite
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from dotenv import load_dotenv
@@ -9,12 +12,13 @@ logging.basicConfig(
     level=logging.INFO
 )
 
+# Load environment
 load_dotenv()
 
 api_id = int(os.getenv("API_ID", "23746013"))
-api_hash = os.getenv("API_HASH", "")
-bot_token = os.getenv("BOT_TOKEN", "")
-log_channel = int(os.getenv("LOG_CHANNEL_ID", ""))
+api_hash = os.getenv("API_HASH", "c4c86f53aac9b29f7fa28d5ba953be44")
+bot_token = os.getenv("BOT_TOKEN", "7547900184:AAHG_FIFns7DSI4jtPSnQ726yO3yB3BnEzY")
+log_channel = int(os.getenv("LOG_CHANNEL_ID", "-1002518891874"))
 
 app = Client("sangmata_bot", api_id=api_id, api_hash=api_hash, bot_token=bot_token)
 usernames = {}
@@ -68,18 +72,16 @@ async def track_user(client: Client, message: Message):
             f"🏷️ **Username Baru:** {new_username}"
         )
 
-        # Balas di chat
         await message.reply(text)
-
-        # Kirim ke channel log
         await client.send_message(log_channel, text)
+        await save_history(uid, *old)
 
-        # Simpan ke database
-        await save_history(uid, old[0], old[1], old[2])
+    if not old:
+        await save_history(uid, *current)
 
     usernames[uid] = current
 
 if __name__ == "__main__":
-    logging.info("✅ Bot SangMata Clone Aktif...")
+    logging.info("✅ Memulai bot SangMata Clone...")
     asyncio.get_event_loop().run_until_complete(init_db())
     app.run()
