@@ -15,12 +15,26 @@ logging.basicConfig(
 # Load environment variables
 load_dotenv()
 
-api_id = int(os.getenv("API_ID", "23746013"))
-api_hash = os.getenv("API_HASH", "c4c86f53aac9b29f7fa28d5ba953be44")
-bot_token = os.getenv("BOT_TOKEN", "7547900184:AAHG_FIFns7DSI4jtPSnQ726yO3yB3BnEzY")
-log_channel = int(os.getenv("LOG_CHANNEL", "-1002608444639"))
+api_id = int(os.getenv("API_ID", ""))
+api_hash = os.getenv("API_HASH", "")
+bot_token = os.getenv("BOT_TOKEN", "")
+log_channel = int(os.getenv("LOG_CHANNEL", ""))
 
 app = Client("sangmata_bot", api_id=api_id, api_hash=api_hash, bot_token=bot_token)
+
+# Sudo/admin/support list
+SUDO_USERS = [7742582171, 7697902976]  # Ganti dengan ID asli Anda
+
+def is_sudo(user_id):
+    return user_id in SUDO_USERS
+
+def is_admin_check():
+    async def func(_, __, message):
+        if message.chat.type == "private":
+            return is_sudo(message.from_user.id)
+        member = await message.chat.get_member(message.from_user.id)
+        return member.status in ("administrator", "creator") or is_sudo(message.from_user.id)
+    return filters.create(func)
 
 # Database init
 async def init_db():
@@ -76,6 +90,51 @@ async def riwayat_handler(client: Client, message: Message):
         text += f"**{i}.** {name} | {username}\n🕒 `{time}`\n\n"
 
     await message.reply(text)
+
+# /search command
+@app.on_message(filters.command("search") & (filters.group | filters.private))
+async def search_handler(client: Client, message: Message):
+    if len(message.command) < 2:
+        return await message.reply("❗ Gunakan `/search keyword` untuk mencari nama atau username.")
+    keyword = message.text.split(None, 1)[1]
+
+    async with aiosqlite.connect("history.db") as db:
+        async with db.execute("""
+            SELECT user_id, first_name, last_name, username, timestamp FROM history
+            WHERE first_name LIKE ? OR last_name LIKE ? OR username LIKE ?
+            ORDER BY timestamp DESC LIMIT 20
+        """, (f"%{keyword}%", f"%{keyword}%", f"%{keyword}%")) as cursor:
+            rows = await cursor.fetchall()
+
+    if not rows:
+        return await message.reply("❌ Tidak ada hasil ditemukan.")
+
+    text = f"🔎 **Hasil pencarian untuk:** `{keyword}`\n━━━━━━━━━━━━━━━━━━━━\n"
+    for i, (uid, first, last, uname, time) in enumerate(rows, start=1):
+        name = f"{first or ''} {last or ''}".strip()
+        username = f"@{uname}" if uname else "❌"
+        text += f"**{i}.** `{uid}`\n👤 {name} | {username}\n🕒 `{time}`\n\n"
+
+    await message.reply(text)
+
+# /hapus_riwayat command
+@app.on_message(filters.command("hapus_riwayat") & is_admin_check())
+async def hapus_riwayat_handler(client: Client, message: Message):
+    if message.reply_to_message and message.reply_to_message.from_user:
+        target_id = message.reply_to_message.from_user.id
+    elif len(message.command) > 1:
+        try:
+            target_id = int(message.command[1])
+        except ValueError:
+            return await message.reply("❌ ID tidak valid.")
+    else:
+        return await message.reply("❗ Gunakan `/hapus_riwayat user_id` atau balas pesan.")
+
+    async with aiosqlite.connect("history.db") as db:
+        await db.execute("DELETE FROM history WHERE user_id = ?", (target_id,))
+        await db.commit()
+
+    await message.reply(f"✅ Riwayat untuk `{target_id}` berhasil dihapus.")
 
 # /id command
 @app.on_message(filters.command("id") & (filters.group | filters.private))
