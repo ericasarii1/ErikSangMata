@@ -12,18 +12,17 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-# Load environment
+# Load environment variables
 load_dotenv()
 
-api_id = int(os.getenv("API_ID", ""))
-api_hash = os.getenv("API_HASH", "")
-bot_token = os.getenv("BOT_TOKEN", "")
-log_channel = int(os.getenv("LOG_CHANNEL_ID", ""))
+api_id = int(os.getenv("API_ID", "23746013"))
+api_hash = os.getenv("API_HASH", "c4c86f53aac9b29f7fa28d5ba953be44")
+bot_token = os.getenv("BOT_TOKEN", "7547900184:AAHG_FIFns7DSI4jtPSnQ726yO3yB3BnEzY")
+log_channel = int(os.getenv("LOG_CHANNEL", "-1002608444639"))
 
 app = Client("sangmata_bot", api_id=api_id, api_hash=api_hash, bot_token=bot_token)
-usernames = {}
 
-# Inisialisasi database
+# Database init
 async def init_db():
     async with aiosqlite.connect("history.db") as db:
         await db.execute("""
@@ -37,7 +36,7 @@ async def init_db():
         """)
         await db.commit()
 
-# Simpan riwayat
+# Save history
 async def save_history(uid, first_name, last_name, username):
     async with aiosqlite.connect("history.db") as db:
         await db.execute("""
@@ -46,7 +45,88 @@ async def save_history(uid, first_name, last_name, username):
         """, (uid, first_name, last_name, username))
         await db.commit()
 
-# Lacak perubahan identitas
+# /riwayat command
+@app.on_message(filters.command("riwayat") & (filters.group | filters.private))
+async def riwayat_handler(client: Client, message: Message):
+    if message.reply_to_message and message.reply_to_message.from_user:
+        target_id = message.reply_to_message.from_user.id
+    elif len(message.command) > 1:
+        try:
+            target_id = int(message.command[1])
+        except ValueError:
+            return await message.reply("❌ ID tidak valid.")
+    else:
+        return await message.reply("❗ Balas pesan atau gunakan `/riwayat user_id`.")
+
+    async with aiosqlite.connect("history.db") as db:
+        async with db.execute("""
+            SELECT first_name, last_name, username, timestamp FROM history
+            WHERE user_id = ?
+            ORDER BY timestamp DESC
+        """, (target_id,)) as cursor:
+            rows = await cursor.fetchall()
+
+    if not rows:
+        return await message.reply("❌ Tidak ada riwayat ditemukan.")
+
+    text = f"📜 **Riwayat Identitas untuk** `{target_id}`:\n━━━━━━━━━━━━━━━━━━━━\n"
+    for i, (first, last, uname, time) in enumerate(rows, start=1):
+        name = f"{first or ''} {last or ''}".strip()
+        username = f"@{uname}" if uname else "❌ Tidak ada"
+        text += f"**{i}.** {name} | {username}\n🕒 `{time}`\n\n"
+
+    await message.reply(text)
+
+# /id command
+@app.on_message(filters.command("id") & (filters.group | filters.private))
+async def id_handler(client: Client, message: Message):
+    if message.reply_to_message:
+        user = message.reply_to_message.from_user
+    elif len(message.command) > 1:
+        try:
+            user = await client.get_users(int(message.command[1]))
+        except Exception:
+            return await message.reply("❌ Tidak bisa mendapatkan informasi pengguna.")
+    else:
+        return await message.reply("❗ Gunakan `/id user_id` atau balas pesan.")
+
+    name = f"{user.first_name or ''} {user.last_name or ''}".strip()
+    username = f"@{user.username}" if user.username else "❌ Tidak ada"
+    await message.reply(f"🧾 **ID Pengguna**\n👤 Nama: {name}\n🏷️ Username: {username}\n🆔 ID: `{user.id}`")
+
+# /nama command
+@app.on_message(filters.command("nama") & (filters.group | filters.private))
+async def nama_handler(client: Client, message: Message):
+    if message.reply_to_message:
+        user = message.reply_to_message.from_user
+    elif len(message.command) > 1:
+        try:
+            user = await client.get_users(int(message.command[1]))
+        except Exception:
+            return await message.reply("❌ Tidak bisa mendapatkan pengguna.")
+    else:
+        return await message.reply("❗ Gunakan `/nama user_id` atau balas pesan.")
+
+    name = f"{user.first_name or ''} {user.last_name or ''}".strip()
+    await message.reply(f"👤 **Nama Pengguna**: {name}")
+
+# /username command
+@app.on_message(filters.command("username") & (filters.group | filters.private))
+async def username_handler(client: Client, message: Message):
+    if message.reply_to_message:
+        user = message.reply_to_message.from_user
+    elif len(message.command) > 1:
+        try:
+            user = await client.get_users(int(message.command[1]))
+        except Exception:
+            return await message.reply("❌ Tidak bisa mendapatkan pengguna.")
+    else:
+        return await message.reply("❗ Gunakan `/username user_id` atau balas pesan.")
+
+    username = f"@{user.username}" if user.username else "❌ Tidak ada username"
+    await message.reply(f"🏷️ **Username**: {username}")
+
+# Track identity changes
 @app.on_message(filters.group | filters.private)
 async def track_user(client: Client, message: Message):
     user = message.from_user
@@ -54,36 +134,44 @@ async def track_user(client: Client, message: Message):
         return
 
     uid = user.id
-    current = (user.first_name or "", user.last_name or "", user.username or "")
-    old = usernames.get(uid)
+    first = user.first_name or ""
+    last = user.last_name or ""
+    uname = user.username or ""
 
-    if old and old != current:
-        old_name = f"{old[0]} {old[1]}".strip()
-        new_name = f"{current[0]} {current[1]}".strip()
-        old_username = f"@{old[2]}" if old[2] else "❌ Tidak ada"
-        new_username = f"@{current[2]}" if current[2] else "❌ Tidak ada"
+    async with aiosqlite.connect("history.db") as db:
+        async with db.execute("""
+            SELECT first_name, last_name, username FROM history
+            WHERE user_id = ?
+            ORDER BY timestamp DESC LIMIT 1
+        """, (uid,)) as cursor:
+            row = await cursor.fetchone()
 
+    old_first, old_last, old_uname = row if row else ("", "", "")
+    if (first, last, uname) != (old_first, old_last, old_uname):
+        display_name = f"{old_first or first}".strip()
         text = (
             f"⚠️ **Perubahan Deteksi Identitas!**\n"
-            f"👤 {new_name} (`{uid}`)\n"
+            f"👤 {display_name} (`{uid}`)\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
-            f"📝 **Nama Lama:** {old_name}\n"
-            f"🔖 **Username Lama:** {old_username}\n"
-            f"🆕 **Nama Baru:** {new_name}\n"
-            f"🏷️ **Username Baru:** {new_username}"
+            f"📝 **Nama Lama:** {old_first} {old_last}\n"
+            f"🔖 **Username Lama:** @{old_uname if old_uname else 'Tidak Ada'}\n"
+            f"🆕 **Nama Baru:** {first} {last}\n"
+            f"🏷️ **Username Baru:** @{uname if uname else 'Tidak Ada'}"
         )
+        try:
+            await message.reply(text)
+        except:
+            pass
+        if log_channel != 0:
+            try:
+                await client.send_message(log_channel, text)
+            except Exception as e:
+                logging.warning(f"Gagal kirim ke log channel: {e}")
 
-        await message.reply(text)
-        await client.send_message(log_channel, text)
-        await save_history(uid, *old)
+    await save_history(uid, first, last, uname)
 
-    if not old:
-        await save_history(uid, *current)
-
-    usernames[uid] = current
-
-# Jalankan bot
+# Run bot
 if __name__ == "__main__":
-    logging.info("✅ Memulai bot SangMata Clone...")
+    logging.info("✅ Memulai bot...")
     asyncio.get_event_loop().run_until_complete(init_db())
     app.run()
