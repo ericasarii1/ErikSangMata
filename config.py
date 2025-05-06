@@ -2,6 +2,19 @@ import sqlite3
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 
+from pyrogram.types import Message
+
+# Monkey patch: ubah reply_text agar tidak menjadi reply
+async def no_reply_text(self, *args, **kwargs):
+    kwargs.pop("reply_to_message_id", None)
+    return await self._client.send_message(
+        chat_id=self.chat.id,
+        text=args[0] if args else kwargs.get("text", ""),
+        **kwargs
+    )
+
+Message.reply_text = no_reply_text
+
 # Konfigurasi bot
 API_ID = 29545467
 API_HASH = ""
