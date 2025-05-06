@@ -5,6 +5,7 @@ import aiosqlite
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from dotenv import load_dotenv
+from time import time
 
 # Logging
 logging.basicConfig(
@@ -192,6 +193,10 @@ async def track_user(client: Client, message: Message):
     if not user or user.is_bot:
         return
 
+    # Hanya lanjut jika message teks atau caption (hindari pesan sistem atau bot join)
+    if not message.text and not message.caption:
+        return
+
     uid = user.id
     first = user.first_name or ""
     last = user.last_name or ""
@@ -205,8 +210,17 @@ async def track_user(client: Client, message: Message):
         """, (uid,)) as cursor:
             row = await cursor.fetchone()
 
-    old_first, old_last, old_uname = row if row else ("", "", "")
-    if (first, last, uname) != (old_first, old_last, old_uname):
+        if not row:
+            # User belum pernah terekam, simpan saja, tidak perlu balas
+            await db.execute("""
+                INSERT INTO history (user_id, first_name, last_name, username, timestamp)
+                VALUES (?, ?, ?, ?, ?)
+            """, (uid, first, last, uname, int(time())))
+            await db.commit()
+            return
+
+    old_first, old_last, old_uname = row
+    if (first != old_first) or (last != old_last) or (uname != old_uname):
         display_name = f"{old_first or first}".strip()
         text = (
             f"⚠️ **Perubahan Deteksi Identitas!**\n"
