@@ -193,7 +193,6 @@ async def track_user(client: Client, message: Message):
     if not user or user.is_bot:
         return
 
-    # Hanya lanjut jika message teks atau caption (hindari pesan sistem atau bot join)
     if not message.text and not message.caption:
         return
 
@@ -211,7 +210,6 @@ async def track_user(client: Client, message: Message):
             row = await cursor.fetchone()
 
         if not row:
-            # User belum pernah terekam, simpan saja, tidak perlu balas
             await db.execute("""
                 INSERT INTO history (user_id, first_name, last_name, username, timestamp)
                 VALUES (?, ?, ?, ?, ?)
@@ -220,24 +218,24 @@ async def track_user(client: Client, message: Message):
             return
 
     old_first, old_last, old_uname = row
-    if (first != old_first) or (last != old_last) or (uname != old_uname):
-        display_name = f"{old_first or first}".strip()
-        text = (
-            f"⚠️ **Perubahan Deteksi Identitas!**\n"
-            f"👤 {display_name} (`{uid}`)\n"
-            f"━━━━━━━━━━━━━━━━━━━━\n"
-            f"📝 **Nama Lama:** {old_first} {old_last}\n"
-            f"🔖 **Username Lama:** @{old_uname if old_uname else 'Tidak Ada'}\n"
-            f"🆕 **Nama Baru:** {first} {last}\n"
-            f"🏷️ **Username Baru:** @{uname if uname else 'Tidak Ada'}"
-        )
+    changes = []
+
+    if old_first != first:
+        changes.append(f"first name from {old_first or 'None'} to {first or 'None'}")
+    if old_last != last:
+        changes.append(f"last name from {old_last or 'None'} to {last or 'None'}")
+    if old_uname != uname:
+        changes.append(f"username from @{old_uname or 'None'} to @{uname or 'None'}")
+
+    if changes:
+        change_text = "\n".join([f"User `{uid}` changed {c}" for c in changes])
         try:
-            await message.reply(text)
+            await message.reply(change_text)
         except:
             pass
         if log_channel != 0:
             try:
-                await client.send_message(log_channel, text)
+                await client.send_message(log_channel, change_text)
             except Exception as e:
                 logging.warning(f"Gagal kirim ke log channel: {e}")
 
