@@ -3,7 +3,7 @@ from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 
 # Konfigurasi bot
-API_ID = 
+API_ID = 29545467
 API_HASH = ""
 BOT_TOKEN = ""
 LOG_CHANNEL = -100  # Opsional
@@ -100,6 +100,16 @@ async def track_identity(_, msg: Message):
             await msg.reply_text(f"User {user.id} changed name from {old_data[0]} to {user.first_name}")
         if old_data[1] != (user.username or ""):
             await msg.reply_text(f"User {user.id} changed username from {old_data[1]} to {user.username}")
+
+        # Kirim log ke channel jika LOG_CHANNEL di-set
+        if LOG_CHANNEL != -100:
+            try:
+                await bot.send_message(
+                    chat_id=LOG_CHANNEL,
+                    text=f"User {user.id} updated identity:\nName: {old_data[0]} -> {user.first_name}\nUsername: {old_data[1]} -> {user.username or '—'}"
+                )
+            except Exception as e:
+                print(f"Gagal mengirim log: {e}")
 
 # Deteksi ID atau username di chat pribadi
 @bot.on_message(filters.private & filters.text & ~filters.command(["start", "help"]))
