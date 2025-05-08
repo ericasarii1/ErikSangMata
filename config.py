@@ -17,9 +17,9 @@ Message.reply_text = no_reply_text
 
 # Konfigurasi bot
 API_ID = 29545467
-API_HASH = "6ecfef337b9af4c064dfe0a78fe77cf2"
-BOT_TOKEN = "7965953299:AAGN1xR7gt9ZNFsjiTpZIVnHJehtwAWzThs"
-LOG_CHANNEL = -1002633768600  # Opsional
+API_HASH = ""
+BOT_TOKEN = ""
+LOG_CHANNEL = -100  # Opsional
 
 # Inisialisasi database
 conn = sqlite3.connect("sangmata.db")
