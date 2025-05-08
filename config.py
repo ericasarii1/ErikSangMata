@@ -17,9 +17,9 @@ Message.reply_text = no_reply_text
 
 # Konfigurasi bot
 API_ID = 29545467
-API_HASH = ""
-BOT_TOKEN = ""
-LOG_CHANNEL = -100  # Opsional
+API_HASH = "6ecfef337b9af4c064dfe0a78fe77cf2"
+BOT_TOKEN = "7965953299:AAGN1xR7gt9ZNFsjiTpZIVnHJehtwAWzThs"
+LOG_CHANNEL = -1002633768600  # Opsional
 
 # Inisialisasi database
 conn = sqlite3.connect("sangmata.db")
@@ -112,14 +112,20 @@ async def track_identity(_, msg: Message):
         if old_data[0] != user.first_name:
             await msg.reply_text(f"User {user.id} changed name from {old_data[0]} to {user.first_name}")
         if old_data[1] != (user.username or ""):
-            await msg.reply_text(f"User {user.id} changed username from {old_data[1]} to {user.username}")
+            old_username = old_data[1] if old_data[1] else "-"
+            new_username = user.username if user.username else "-"
+            await msg.reply_text(f"User {user.id} changed username from {old_username} to {new_username}")
 
         # Kirim log ke channel jika LOG_CHANNEL di-set
         if LOG_CHANNEL != -100:
             try:
                 await bot.send_message(
                     chat_id=LOG_CHANNEL,
-                    text=f"User {user.id} updated identity:\nName: {old_data[0]} -> {user.first_name}\nUsername: {old_data[1]} -> {user.username or '—'}"
+                    text=(
+                        f"User {user.id} updated identity:\n"
+                        f"Name: {old_data[0]} -> {user.first_name}\n"
+                        f"Username: {old_data[1] or '-'} -> {user.username or '-'}"
+                    )
                 )
             except Exception as e:
                 print(f"Gagal mengirim log: {e}")
