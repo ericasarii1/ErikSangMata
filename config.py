@@ -16,10 +16,10 @@ async def no_reply_text(self, *args, **kwargs):
 Message.reply_text = no_reply_text
 
 # Konfigurasi bot
-API_ID = 29545467
+API_ID = 23746013
 API_HASH = ""
 BOT_TOKEN = ""
-LOG_CHANNEL = -100  # Opsional
+LOG_CHANNEL = -1002671030138  # Opsional
 
 # Inisialisasi database
 conn = sqlite3.connect("sangmata.db")
@@ -53,7 +53,7 @@ async def start(_, msg: Message):
     teks = (
         "Hello! 👋\n\n"
         "**If you're a group admin:**\n"
-        "You can add this bot by clicking the button below. Make sure that you add the SangMata bot as **ADMIN** with \"Manage Group\" permission so that it can work properly!\n\n"
+        "You can add this bot by clicking the button below. Make sure that you add the Siesta bot as **ADMIN** with \"Manage Group\" permission so that it can work properly!\n\n"
         "**If you want to query a user history:**\n"
         "There are 3 ways:\n"
         "1. You can forward the user's message here\n"
@@ -64,7 +64,7 @@ async def start(_, msg: Message):
     )
 
     tombol = InlineKeyboardMarkup(
-        [[InlineKeyboardButton("➕ Add Bot to Group", url="https://t.me/SangMataOvanime_Robot?startgroup=true")]]
+        [[InlineKeyboardButton("➕ Add Bot to Group", url="https://t.me/siestadetective_robot?startgroup=true")]]
     )
 
     await msg.reply_text(teks, reply_markup=tombol, disable_web_page_preview=True)
@@ -87,8 +87,8 @@ async def help_message(_, msg: Message):
         "**Chat Info:**\n"
         "`chatinfo` or `ci` - Show current chat (channel or group) information\n\n"
         "**Other Commands:**\n"
-        "`donate` or `d` - Donate to Sang group\n"
-        "`groupdonate` or `gd` - Donate as group to Sang group\n"
+        "`donate` or `d` - Donate to Siesta group\n"
+        "`groupdonate` or `gd` - Donate as group to Siesta group\n"
         "`donatealt` or `da` - Alternative method for donation\n"
         "`version` or `v` - Show bot version\n"
         "`versionhistory` or `vh` - Show bot version and changes log\n"
